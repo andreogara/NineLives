@@ -1,0 +1,224 @@
+var StarsFrame = React.createClass({
+    render: function(){
+        var numberOfStars = this.props.numberOfStars;
+        var stars = [];
+        for(var i = 0; i < numberOfStars; i++){
+            stars.push(
+                <span className="glyphicon glyphicon-star"></span>
+            )
+        }
+        return(
+            <div id="stars-frame">
+                <div className="well">
+                    {stars}
+                </div>
+            </div>
+        )
+    }
+});
+
+var ButtonFrame = React.createClass({
+    render: function(){
+        var disabled, button, correct = this.props.correct;
+        switch (correct){
+            case true:
+                button = (<button className="btn btn-success btn-lg" onClick={this.props.acceptAnswer}>
+                    <span className="glyphicon glyphicon-ok"></span>
+                </button>);
+                break;
+            case false:
+                button = (<button className="btn btn-danger btn-lg">
+                    <span className="glyphicon glyphicon-remove"></span>
+                </button>);
+                break;
+            default:
+                disabled = (this.props.selectedNumbers.length === 0);
+                button = (<button onClick={this.props.checkAnswer} className="btn btn-primary btn-lg" disabled={disabled}>=</button>);
+        }
+        return(
+            <div id="button-frame">
+                {button}
+                <br/><br/>
+                <button className="btn btn-warning btn-xs" onClick={this.props.redraw} disabled={this.props.redraws === 0}>
+                    <span className="glyphicon glyphicon-refresh"></span>
+                    &nbsp;
+                    {this.props.redraws}
+                </button>
+            </div>
+        )
+    }
+});
+
+var AnswerFrame = React.createClass({
+    render: function(){
+        var props = this.props;
+        var selectedNumbers = props.selectedNumbers.map(function(i){
+            return (<span onClick={props.unclickNumber.bind(null, i)}>{i}</span>)
+        });
+        return(
+            <div id="answers-frame">
+                <div className="well">
+                    {selectedNumbers}
+                </div>
+            </div>
+        )
+    }
+});
+
+var NumberFrame = React.createClass({
+    render: function(){
+        var numbers = [], className, selectedNumbers = this.props.selectedNumbers, usedNumbers = this.props.usedNumbers, clickNumber = this.props.clickNumber;
+        for (var i = 1; i <= 9; i++){
+            className = "number selected-"+(selectedNumbers.indexOf(i)>=0);
+            className += " used-"+(usedNumbers.indexOf(i)>=0);
+            numbers.push(
+                <div className={className} onClick={clickNumber.bind(null, i)}>{i}</div>
+            );
+        }
+        return(
+            <div id="numbers-frame">
+                <div className="well">
+                    {numbers}
+                </div>
+            </div>
+        )
+    }
+});
+
+var DoneFrame = React.createClass({
+    render: function(){
+        return (
+            <div className="well text-center">
+                <h2>{this.props.doneStatus}</h2>
+            </div>
+        )
+    }
+});
+
+var Game = React.createClass({
+    getInitialState: function(){
+        return {
+            numberOfStars: this.randomNumber(),
+            selectedNumbers: [],
+            usedNumbers:[],
+            correct:null,
+            redraws: 5,
+            doneStatus: null
+        }
+    },
+    updateDoneStatus: function(){
+      if(this.state.usedNumbers.length === 9){
+          this.setState({doneStatus: "Done. Nice!!!"})
+          return;
+      }
+      if(this.state.redraws === 0 && !this.possibleSolutions()){
+          this.setState({doneStatus: 'Game Over!!!'});
+      }
+    },
+    possibleSolutions: function(){
+        var numberOfStars = this.state.numberOfStars,
+            possibleNumbers = [],
+            usedNumbers = this.state.usedNumbers;
+        for(var i=1; i <= 9; i++){
+            if(usedNumbers.indexOf(i) < 0){
+                possibleNumbers.push(i);
+            }
+        }
+        return this.possibleCombinationSum(possibleNumbers, numberOfStars);
+    },
+    possibleCombinationSum : function(arr, n) {
+        if (arr.indexOf(n) >= 0) { return true; }
+        if (arr[0] > n) { return false; }
+        if (arr[arr.length - 1] > n) {
+            arr.pop();
+            return this.possibleCombinationSum(arr, n);
+        }
+        var listSize = arr.length, combinationsCount = (1 << listSize)
+        for (var i = 1; i < combinationsCount ; i++ ) {
+            var combinationSum = 0;
+            for (var j=0 ; j < listSize ; j++) {
+                if (i & (1 << j)) { combinationSum += arr[j]; }
+            }
+            if (n === combinationSum) { return true; }
+        }
+        return false;
+    },
+    randomNumber: function(){
+        return Math.floor(Math.random()*9)+1;
+    },
+    acceptAnswer: function(){
+        var usedNumbers = this.state.usedNumbers.concat(this.state.selectedNumbers);
+        this.setState({
+            selectedNumbers: [],
+            usedNumbers: usedNumbers,
+            correct: null,
+            numberOfStars: this.randomNumber()
+            }, function(){
+            this.updateDoneStatus();
+            }
+        );
+    },
+    clickNumber: function(clickedNumber){
+        if(this.state.selectedNumbers.indexOf(clickedNumber)<0 ){
+            this.setState({
+                selectedNumbers:this.state.selectedNumbers.concat(clickedNumber)
+            , correct: null})
+        }
+    },
+    unclickNumber: function(clickNumber){
+      var selectedNumbers = this.state.selectedNumbers,
+          indexOfNumber = selectedNumbers.indexOf(clickNumber);
+        selectedNumbers.splice(indexOfNumber, 1);
+        this.setState({
+            selectedNumbers: selectedNumbers,
+            correct: null
+        })
+    },
+    checkAnswer : function(){
+        var correct = (this.state.numberOfStars === this.sumOfSelectedNumbers());
+        this.setState({correct: correct});
+    },
+    sumOfSelectedNumbers: function(){
+      return this.state.selectedNumbers.reduce(function(currentNumber, collector){
+          return collector + currentNumber;
+      }, 0)
+    },
+    redraw: function(){
+        if(this.state.redraws > 0){
+            this.setState({
+                numberOfStars: this.randomNumber(),
+                correct: null,
+                selectedNumbers: [],
+                redraws: --this.state.redraws
+            }, function(){
+                this.updateDoneStatus();
+            })
+        }
+    },
+    render: function(){
+        var selectedNumbers = this.state.selectedNumbers,
+            numberOfStars = this.state.numberOfStars,
+            correct = this.state.correct,
+            usedNumbers = this.state.usedNumbers,
+            redraws = this.state.redraws,
+            doneStatus = this.state.doneStatus,
+            bottomFrame = doneStatus? <DoneFrame doneStatus={doneStatus}/> : <NumberFrame selectedNumbers = {selectedNumbers} clickNumber={this.clickNumber} usedNumbers={usedNumbers}/>;
+        return(
+            <div id="game">
+                <h2>Play Nine</h2>
+                <hr/>
+                <div className="clearfix">
+                    <StarsFrame numberOfStars={numberOfStars}/>
+                    <ButtonFrame redraws = {redraws} redraw = {this.redraw} acceptAnswer = {this.acceptAnswer} selectedNumbers = {selectedNumbers} correct={correct} checkAnswer={this.checkAnswer}/>
+                    <AnswerFrame selectedNumbers = {selectedNumbers} unclickNumber = {this.unclickNumber}/>
+                </div>
+                {bottomFrame}
+            </div>
+        )
+    }
+});
+
+React.render(
+    <Game/>,
+    document.getElementById('root')
+)
